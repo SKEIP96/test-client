@@ -12,7 +12,7 @@ export function SiteHeader() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
 
-  const { user, logout, isLoading: authLoading } = useAuthStore();
+  const { user, isAdmin, logout, isLoading: authLoading } = useAuthStore();
   const { itemsCount } = useCart();
 
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
@@ -35,17 +35,35 @@ export function SiteHeader() {
               <Button variant="ghost">Products</Button>
             </Link>
             <Link href="/cart">
-              <Button variant="ghost">Cart{itemsCount ? ` (${itemsCount})` : ""}</Button>
+              <Button variant="ghost">
+                Cart{itemsCount ? ` (${itemsCount})` : ""}
+              </Button>
             </Link>
             <Link href="/orders">
               <Button variant="ghost">Orders</Button>
             </Link>
+
+            {/* ✅ Admin link (only for admins) */}
+            {isAdmin && (
+              <Link href="/admin">
+                <Button variant="ghost">Admin</Button>
+              </Link>
+            )}
           </nav>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
           </Button>
 
           {!user ? (
@@ -64,7 +82,11 @@ export function SiteHeader() {
               <div className="hidden sm:block text-sm text-muted-foreground">
                 {user.name ?? user.email ?? `User #${user.id}`}
               </div>
-              <Button variant="destructive" onClick={onLogout} disabled={authLoading}>
+              <Button
+                variant="destructive"
+                onClick={onLogout}
+                disabled={authLoading}
+              >
                 Logout
               </Button>
             </>
