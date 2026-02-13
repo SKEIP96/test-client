@@ -71,6 +71,9 @@ export default function AdminProductsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Catalog</CardTitle>
+        <Link href="/admin/products/new">
+         <Button>Create</Button>
+       </Link>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoading && (

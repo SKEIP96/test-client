@@ -27,3 +27,14 @@ export async function getProductsAll(): Promise<ProductWithStock[]> {
   const res = await apiClient.get<ProductsPageDto>("/products", { params: { take: 1000 } });
   return res.data.items;
 }
+
+export type CreateProductDto = {
+  title: string;
+  price: number | string;
+  in_stock: number;
+};
+
+export async function createProduct(dto: CreateProductDto): Promise<ProductWithStock> {
+  const { data } = await apiClient.post<ProductWithStock>("/products", dto);
+  return data;
+}
