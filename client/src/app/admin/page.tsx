@@ -14,7 +14,6 @@ export default function AdminPage() {
   // если пользователь обновил страницу — подтягиваем сессию
   useEffect(() => {
     if (!user) fetchMe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // guard
