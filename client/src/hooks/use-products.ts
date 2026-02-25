@@ -1,98 +1,97 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ProductWithStock } from "../types/product";
-import { getApiErrorMessage } from "../libs/api/client";
-import { getProductsPage, type SortKey } from "../libs/api/product";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getApiErrorMessage } from "@/libs/api/client";
+import { getProductsPage, SortKey } from "@/libs/api/product";
+import type { ProductWithStock } from "@/types/product";
 
-type Params = {
+type Options = {
   q?: string;
   sort?: SortKey;
   take?: number;
+  inStockOnly?: boolean;
 };
 
-export const useProducts = (params?: Params) => {
-  const q = params?.q ?? "";
-  const sort = params?.sort ?? "new";
-  const take = params?.take ?? 12;
+export function useProducts(opts?: Options) {
+  const q = opts?.q ?? "";
+  const sort = opts?.sort ?? "new";
+  const take = opts?.take ?? 12;
+  const inStockOnly = opts?.inStockOnly ?? false;
 
   const [products, setProducts] = useState<ProductWithStock[]>([]);
-  const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // защита от гонок запросов (быстро меняют q/sort)
-  const requestKeyRef = useRef(0);
+  const reqIdRef = useRef(0);
 
-  const loadFirst = async () => {
-    const key = ++requestKeyRef.current;
-    try {
-      setIsLoading(true);
-      setError(null);
+  const loadPage = useCallback(
+    async (targetPage: number, mode: "replace" | "append") => {
+      const reqId = ++reqIdRef.current;
 
-      const res = await getProductsPage({
-        take,
-        cursor: null,
-        q,
-        sort,
-      });
+      try {
+        if (mode === "replace") setIsLoading(true);
+        else setIsLoadingMore(true);
 
-      if (requestKeyRef.current !== key) return;
+        setError(null);
 
-      setProducts(res.items);
-      setNextCursor(res.nextCursor);
-    } catch (e) {
-      if (requestKeyRef.current !== key) return;
-      setError(getApiErrorMessage(e));
-    } finally {
-      if (requestKeyRef.current === key) setIsLoading(false);
-    }
-  };
+        const data = await getProductsPage({
+          take,
+          page: targetPage,
+          q,
+          sort,
+          inStockOnly,
+        });
 
-  const loadMore = async () => {
-    if (nextCursor == null || isLoadingMore) return;
+        if (reqId !== reqIdRef.current) return;
 
-    const key = requestKeyRef.current;
-    try {
-      setIsLoadingMore(true);
-      setError(null);
+        setHasMore(data.hasMore);
+        setPage(data.page);
 
-      const res = await getProductsPage({
-        take,
-        cursor: nextCursor,
-        q,
-        sort,
-      });
+        setProducts((prev) => (mode === "append" ? [...prev, ...data.items] : data.items));
+      } catch (e) {
+        if (reqId !== reqIdRef.current) return;
+        setError(getApiErrorMessage(e));
+        if (mode === "replace") setProducts([]);
+      } finally {
+        if (reqId === reqIdRef.current) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
+      }
+    },
+    [take, q, sort, inStockOnly]
+  );
 
-      if (requestKeyRef.current !== key) return;
-
-      setProducts((prev) => [...prev, ...res.items]);
-      setNextCursor(res.nextCursor);
-    } catch (e) {
-      if (requestKeyRef.current !== key) return;
-      setError(getApiErrorMessage(e));
-    } finally {
-      if (requestKeyRef.current === key) setIsLoadingMore(false);
-    }
-  };
-
-  // загружаем при старте и при смене q/sort/take
+  // при смене q/sort/inStockOnly/take — заново с page=1
   useEffect(() => {
-    loadFirst();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, sort, take]);
+    setProducts([]);
+    setPage(1);
+    setHasMore(false);
+    loadPage(1, "replace");
+  }, [loadPage]);
 
-  const canLoadMore = useMemo(() => nextCursor !== null, [nextCursor]);
+  const loadMore = useCallback(async () => {
+    if (!hasMore || isLoadingMore) return;
+    await loadPage(page + 1, "append");
+  }, [hasMore, isLoadingMore, loadPage, page]);
+
+  const refetch = useCallback(async () => {
+    await loadPage(1, "replace");
+  }, [loadPage]);
 
   return {
     products,
+    page,
+    hasMore,
     isLoading,
     isLoadingMore,
     error,
-    canLoadMore,
+    canLoadMore: hasMore,
     loadMore,
-    refetch: loadFirst,
+    refetch,
   };
-};
+}

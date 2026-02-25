@@ -1,11 +1,13 @@
 // src/libs/api/auth.ts
 import { apiClient } from "./client";
 
+export type UserRole = "USER" | "ADMIN";
+
 export type UserDto = {
   id: number;
   email?: string;
   name?: string;
-  role?: string;
+  role?: UserRole;
 };
 
 export type RegisterDto = {
@@ -18,7 +20,6 @@ export async function login(email: string, password: string) {
   await apiClient.post("/auth/login", { email, password });
 }
 
-// ✅ CHANGED: теперь register принимает один объект (DTO)
 export async function register(dto: RegisterDto) {
   await apiClient.post("/auth/register", dto);
 }

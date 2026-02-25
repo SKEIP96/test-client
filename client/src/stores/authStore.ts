@@ -4,8 +4,14 @@ import { create } from "zustand";
 import * as authApi from "@/libs/api/auth";
 import { getApiErrorMessage } from "@/libs/api/client";
 
+export type UserRole = "USER" | "ADMIN";
+
+export type AuthUser = authApi.UserDto & {
+  role?: UserRole; // role приходит с бэка, но держим optional на случай старых данных
+};
+
 type AuthState = {
-  user: authApi.UserDto | null;
+  user: AuthUser | null;
 
   // user actions loading
   isLoading: boolean;
@@ -15,19 +21,24 @@ type AuthState = {
 
   error: string | null;
 
+  // computed helpers
+  isAdmin: boolean;
+
   clearError: () => void;
 
   fetchMe: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>; // ✅ ADDED
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: false,
   isChecking: false,
   error: null,
+
+  isAdmin: false,
 
   clearError: () => set({ error: null }),
 
@@ -35,10 +46,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchMe: async () => {
     try {
       set({ isChecking: true });
-      const user = await authApi.me();
-      set({ user });
+      const user = (await authApi.me()) as AuthUser;
+
+      set({
+        user,
+        isAdmin: user?.role === "ADMIN",
+      });
     } catch {
-      set({ user: null });
+      set({ user: null, isAdmin: false });
     } finally {
       set({ isChecking: false });
     }
@@ -47,24 +62,29 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email, password) => {
     try {
       set({ isLoading: true, error: null });
+
       await authApi.login(email, password);
-      const user = await authApi.me();
-      set({ user });
+
+      const user = (await authApi.me()) as AuthUser;
+
+      set({
+        user,
+        isAdmin: user?.role === "ADMIN",
+      });
     } catch (e) {
-      set({ error: getApiErrorMessage(e), user: null });
+      set({ error: getApiErrorMessage(e), user: null, isAdmin: false });
       throw e;
     } finally {
       set({ isLoading: false });
     }
   },
 
-  // ✅ ADDED: регистрация (после успеха обычно редиректим на /login)
   register: async (name, email, password) => {
     try {
       set({ isLoading: true, error: null });
       await authApi.register({ name, email, password });
     } catch (e) {
-      set({ error: getApiErrorMessage(e), user: null });
+      set({ error: getApiErrorMessage(e), user: null, isAdmin: false });
       throw e;
     } finally {
       set({ isLoading: false });
@@ -76,7 +96,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ isLoading: true, error: null });
       await authApi.logout();
     } finally {
-      set({ user: null, isLoading: false });
+      set({ user: null, isAdmin: false, isLoading: false });
     }
   },
 }));

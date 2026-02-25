@@ -1,29 +1,46 @@
+// src/libs/api/product.ts
 import { apiClient } from "./client";
-import type { ProductWithStock } from "../../types/product";
+import type { ProductWithStock } from "@/types/product";
 
-// сортировка как на бэке
-export type SortKey = "new" | "price_asc" | "price_desc" | "stock_desc";
+export type SortKey = "new" | "price_asc" | "price_desc";
 
-// ответ пагинации от бэка
 export type ProductsPageDto = {
   items: ProductWithStock[];
-  nextCursor: number | null;
+  page: number;
+  take: number;
+  hasMore: boolean;
 };
 
-// ✅ новый метод для server pagination (Load more)
-export async function getProductsPage(params?: {
-  take?: number;
-  cursor?: number | null;
+export async function getProductsPage(params: {
+  take: number;
+  page: number;
   q?: string;
   sort?: SortKey;
+  inStockOnly?: boolean;
 }): Promise<ProductsPageDto> {
-  const res = await apiClient.get<ProductsPageDto>("/products", { params });
-  return res.data;
+  const { data } = await apiClient.get<ProductsPageDto>("/products", { params });
+  return data;
 }
 
-// (опционально) старый метод "получить всё" — лучше не использовать в каталоге.
-// Можно удалить, но оставляю для совместимости, чтобы проект не упал сразу.
-export async function getProductsAll(): Promise<ProductWithStock[]> {
-  const res = await apiClient.get<ProductsPageDto>("/products", { params: { take: 1000 } });
-  return res.data.items;
+export type CreateProductDto = {
+  title: string;
+  price: string | number;
+  in_stock: number;
+};
+
+export type UpdateProductDto = Partial<CreateProductDto>;
+
+export async function createProduct(dto: CreateProductDto) {
+  const { data } = await apiClient.post("/products", dto);
+  return data;
+}
+
+export async function updateProduct(id: number, dto: UpdateProductDto) {
+  const { data } = await apiClient.patch(`/products/${id}`, dto);
+  return data;
+}
+
+export async function deleteProduct(id: number) {
+  const { data } = await apiClient.delete(`/products/${id}`);
+  return data;
 }
