@@ -1,17 +1,46 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useProducts } from "@/hooks/use-products";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminProductsPage() {
   const router = useRouter();
   const { user, isAdmin, isChecking, fetchMe } = useAuthStore();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { products, isLoading, error, refetch } = useProducts({
+    q: "",
+    sort: "new",
+    take: 50,
+  });
+
+  const handleDelete = async (productId: number) => {
+    if (isDeleting) return; // Чтобы предотвратить несколько запросов одновременно
+    setIsDeleting(true);
+
+    try {
+      await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+      });
+      // Обновить список продуктов после удаления
+      refetch();
+    } catch (error) {
+      console.error("Failed to delete product", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // подтянуть сессию при обновлении страницы
   useEffect(() => {
@@ -34,11 +63,6 @@ export default function AdminProductsPage() {
   }, [user, isAdmin, isChecking, router]);
 
   // список товаров (пока без поиска/сортировки — добавим позже)
-  const { products, isLoading, error, refetch } = useProducts({
-    q: "",
-    sort: "new",
-    take: 50,
-  });
 
   if (isChecking || !user) {
     return (
@@ -109,11 +133,17 @@ export default function AdminProductsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Edit/Delete добавим следующим шагом */}
-                    <Button variant="outline" size="sm" disabled>
-                      Edit
-                    </Button>
-                    <Button variant="destructive" size="sm" disabled>
+                    <Link href={`/admin/products/edit/${p.id}`}>
+                      <Button variant="outline" size="sm">
+                        Edit
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(p.id)}
+                      disabled={isDeleting}
+                    >
                       Delete
                     </Button>
                   </div>

@@ -11,6 +11,11 @@ export type ProductsPageDto = {
   hasMore: boolean;
 };
 
+export async function getProduct(id: number): Promise<ProductWithStock> {
+  const { data } = await apiClient.get<ProductWithStock>(`/products/${id}`);
+  return data;
+}
+
 export async function getProductsPage(params: {
   take: number;
   page: number;
