@@ -133,11 +133,11 @@ export default function AdminProductsPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Link href={`/admin/products/edit/${p.id}`}>
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
-                    </Link>
+                  <Link href={`/admin/products/${p.id}/edit`}>
+                    <Button variant="outline" size="sm">
+                    Edit
+                    </Button>
+                  </Link>
                     <Button
                       variant="destructive"
                       size="sm"
