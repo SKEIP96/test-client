@@ -4,6 +4,7 @@
 import { create } from "zustand";
 import * as ordersApi from "@/libs/api/orders";
 import { getApiErrorMessage } from "@/libs/api/client";
+import { useUiStore } from "@/stores/uiStore";
 
 type CartState = {
   current: ordersApi.OrderDto | null;
@@ -20,6 +21,27 @@ type CartState = {
   reset: () => void; // ✅ ADDED
 };
 
+function applyAdjustmentsToasts(order: any) {
+  const adjustments = order?.adjustments ?? [];
+  if (!adjustments.length) return;
+
+  const ui = useUiStore.getState();
+
+  for (const a of adjustments) {
+    if (a.type === "REMOVED") {
+      ui.pushToast({
+        type: "error",
+        message: `Removed: ${a.title} (out of stock)`,
+      });
+    } else if (a.type === "REDUCED") {
+      ui.pushToast({
+        type: "info",
+        message: `Adjusted: ${a.title} qty ${a.from} → ${a.to}`,
+      });
+    }
+  }
+}
+
 export const useCartStore = create<CartState>((set) => ({
   current: null,
   isLoading: false,
@@ -35,6 +57,7 @@ export const useCartStore = create<CartState>((set) => ({
       set({ isLoading: true, error: null });
       const order = await ordersApi.getCurrentOrder();
       set({ current: order });
+      applyAdjustmentsToasts(order);
     } catch (e) {
       set({ current: null, error: getApiErrorMessage(e) });
       throw e;
@@ -48,6 +71,7 @@ export const useCartStore = create<CartState>((set) => ({
       set({ isLoading: true, error: null });
       const order = await ordersApi.addItemToCurrentOrder(productId, quantity);
       set({ current: order });
+      applyAdjustmentsToasts(order);
     } catch (e) {
       set({ error: getApiErrorMessage(e) });
       throw e;
@@ -61,6 +85,7 @@ export const useCartStore = create<CartState>((set) => ({
       set({ isLoading: true, error: null });
       const order = await ordersApi.setCurrentOrderItemQty(productId, quantity);
       set({ current: order });
+      applyAdjustmentsToasts(order);
     } catch (e) {
       set({ error: getApiErrorMessage(e) });
       throw e;
@@ -74,6 +99,7 @@ export const useCartStore = create<CartState>((set) => ({
       set({ isLoading: true, error: null });
       const order = await ordersApi.setCurrentOrderItemQty(productId, 0);
       set({ current: order });
+      applyAdjustmentsToasts(order);
     } catch (e) {
       set({ error: getApiErrorMessage(e) });
       throw e;
